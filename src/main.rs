@@ -59,7 +59,7 @@ fn derive_haste_map(project_path: PathBuf) -> HasteMap {
         })
         .filter(|tuple| tuple.1.is_ok())
         .map(|(path, _, content)| SourceFile {
-            path: path.strip_prefix(&project_path).unwrap().to_path_buf(),
+            path,
             dependencies: js_parser::parse(&content),
         })
         .collect();
@@ -120,7 +120,7 @@ fn main() {
     let elapsed = now.elapsed();
     println!("ms: {}", duration_to_ms(elapsed));
 
-    const COMPARISON_ARTIFACT: &str = "haste_map.txt";
+    const COMPARISON_ARTIFACT: &str = "haste_map_rs.txt";
     let comparison_artifact = Path::new(COMPARISON_ARTIFACT);
     let generate_artifact = comparison_artifact.exists();
     match generate_artifact {
