@@ -3,12 +3,12 @@ use regex::Regex;
 lazy_static! {
   // Adapted from https://github.com/facebook/jest/blob/master/packages/jest-haste-map/src/lib/extract_requires.js
   static ref DYNAMIC_IMPORT: Regex = Regex::new(r#"(?:^|[^.]\s*)(\bimport\s*?\(\s*?)([`'"])([^`'"]+)([`'"]\))"#).unwrap();
-    // TODO: Filter out `import type ...`
-    static ref EXPORT: Regex = Regex::new(r#"(\bexport\s+(?:[^'"]+\s+from\s+)??)(['"])([^'"]+)(['"])"#).unwrap();
-    // TODO: Filter out `import type ...`
-    static ref IMPORT: Regex = Regex::new(r#"(\bimport\s+(?:[^'"]+\s+from\s+)??)(['"])([^'"]+)(['"])"#).unwrap();
-    static ref REQUIRE_JEST: Regex = Regex::new(r#"(?:^|[^.]\s*)(\b(?:require\s*?\.\s*?(?:requireActual|requireMock)|jest\s*?\.\s*?(?:requireActual|requireMock|genMockFromModule))\s*?\(\s*?)([`'"])([^`'"]+)([`'"]\))"#).unwrap();
-    static ref REQUIRE: Regex = Regex::new(r#"(?:^|[^.]\s*)(\brequire\s*?\(\s*?)([`'"])([^`'"]+)([`'"]\))"#).unwrap();
+  // TODO: Filter out `import type ...`
+  static ref EXPORT: Regex = Regex::new(r#"(\bexport\s+(?:[^'"]+\s+from\s+)??)(['"])([^'"]+)(['"])"#).unwrap();
+  // TODO: Filter out `import type ...`
+  static ref IMPORT: Regex = Regex::new(r#"(\bimport\s+(?:[^'"]+\s+from\s+)??)(['"])([^'"]+)(['"])"#).unwrap();
+  static ref REQUIRE_JEST: Regex = Regex::new(r#"(?:^|[^.]\s*)(\b(?:require\s*?\.\s*?(?:requireActual|requireMock)|jest\s*?\.\s*?(?:requireActual|requireMock|genMockFromModule))\s*?\(\s*?)([`'"])([^`'"]+)([`'"]\))"#).unwrap();
+  static ref REQUIRE: Regex = Regex::new(r#"(?:^|[^.]\s*)(\brequire\s*?\(\s*?)([`'"])([^`'"]+)([`'"]\))"#).unwrap();
 }
 
 pub fn parse(content: &String) -> Vec<String> {
