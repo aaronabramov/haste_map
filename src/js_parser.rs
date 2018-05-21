@@ -76,6 +76,24 @@ mod test {
   }
 
   #[test]
+  fn multiline_import() {
+    let content = String::from(
+      r#"
+      import {
+        foo,
+        bar,
+      } from "a";
+      import foo as bar, {
+        baz,
+        biz,
+      } from "b";
+    "#,
+    );
+    let result = super::parse(&content);
+    assert_eq!(result, vec!["a", "b"]);
+  }
+
+  #[test]
   fn jest_require() {
     let content = String::from(
       r#"
