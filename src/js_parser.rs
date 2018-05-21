@@ -2,13 +2,11 @@ use regex::Regex;
 
 lazy_static! {
   // Adapted from https://github.com/facebook/jest/blob/master/packages/jest-haste-map/src/lib/extract_requires.js
-  static ref DYNAMIC_IMPORT: Regex = Regex::new(r#"(?:^|[^.]\s*)(\bimport\s*?\(\s*?)([`'"])([^`'"]+)([`'"]\))"#).unwrap();
-  // TODO: Filter out `import type ...`
-  static ref EXPORT: Regex = Regex::new(r#"(\bexport\s+(?:[^'"]+\s+from\s+)??)(['"])([^'"]+)(['"])"#).unwrap();
-  // TODO: Filter out `import type ...`
-  static ref IMPORT: Regex = Regex::new(r#"(\bimport\s+(?:[^'"]+\s+from\s+)??)(['"])([^'"]+)(['"])"#).unwrap();
-  static ref REQUIRE_JEST: Regex = Regex::new(r#"(?:^|[^.]\s*)(\b(?:require\s*?\.\s*?(?:requireActual|requireMock)|jest\s*?\.\s*?(?:requireActual|requireMock|genMockFromModule))\s*?\(\s*?)([`'"])([^`'"]+)([`'"]\))"#).unwrap();
-  static ref REQUIRE: Regex = Regex::new(r#"(?:^|[^.]\s*)(\brequire\s*?\(\s*?)([`'"])([^`'"]+)([`'"]\))"#).unwrap();
+  static ref DYNAMIC_IMPORT: Regex = Regex::new(r#"(?:^|[^.]\s*)(\bimport\s*?\(\s*?)([`'"])(?P<module>[^`'"]+)([`'"]\))"#).unwrap();
+  static ref EXPORT: Regex = Regex::new(r#"(\bexport\s+(?P<type>type )?(?:[^'"]+\s+from\s+)??)(['"])(?P<module>[^'"]+)(['"])"#).unwrap();
+  static ref IMPORT: Regex = Regex::new(r#"(\bimport\s+(?P<type>type )?(?:[^'"]+\s+from\s+)??)(['"])(?P<module>[^'"]+)(['"])"#).unwrap();
+  static ref REQUIRE_JEST: Regex = Regex::new(r#"(?:^|[^.]\s*)(\b(?:require\s*?\.\s*?(?:requireActual|requireMock)|jest\s*?\.\s*?(?:requireActual|requireMock|genMockFromModule))\s*?\(\s*?)([`'"])(?P<module>[^`'"]+)([`'"]\))"#).unwrap();
+  static ref REQUIRE: Regex = Regex::new(r#"(?:^|[^.]\s*)(\brequire\s*?\(\s*?)([`'"])(?P<module>[^`'"]+)([`'"]\))"#).unwrap();
 }
 
 pub fn parse(content: &String) -> Vec<String> {
@@ -19,7 +17,8 @@ pub fn parse(content: &String) -> Vec<String> {
     .flat_map(|pattern| {
       pattern
         .captures_iter(&content)
-        .map(|c| String::from(c.get(3).unwrap().as_str()))
+        .filter(|c| !c.name("type").is_some()) // Ignore type imports.
+        .map(|c| String::from(c.name("module").unwrap().as_str()))
     })
     .collect();
   captures
@@ -49,7 +48,7 @@ mod test {
     "#,
     );
     let result = super::parse(&content);
-    assert_eq!(result, vec!["a", "b", "c"]);
+    assert_eq!(result, vec!["a", "c"]);
   }
 
   #[test]
@@ -58,6 +57,7 @@ mod test {
       r#"
       export {a, b} from 'a';
       export * from 'b';
+      export type {c} from 'c';
     "#,
     );
     let result = super::parse(&content);
@@ -91,6 +91,19 @@ mod test {
     );
     let result = super::parse(&content);
     assert_eq!(result, vec!["a", "b"]);
+  }
+
+  #[test]
+  fn type_import() {
+    let content = String::from(
+      r#"
+      import type MyType from "a";
+      import type { MyOtherType } from "b";
+    "#,
+    );
+    let result = super::parse(&content);
+    let expected: Vec<&str> = vec![];
+    assert_eq!(result, expected);
   }
 
   #[test]
