@@ -2,11 +2,11 @@ extern crate bincode;
 extern crate glob;
 #[macro_use]
 extern crate lazy_static;
+extern crate num_cpus;
 extern crate rayon;
 extern crate regex;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_json;
 
 use glob::glob;
 use rayon::prelude::*;
@@ -21,7 +21,7 @@ use std::time::Instant;
 
 mod js_parser;
 
-const CACHE_FILE: &str = "cache.bincode";
+const CACHE_DIR: &str = "cache";
 
 #[derive(Serialize, Deserialize, Debug)]
 struct SourceFile {
@@ -42,12 +42,12 @@ fn get_project_path() -> PathBuf {
 fn derive_haste_map(project_path: PathBuf) -> HasteMap {
     let glob_time = Instant::now();
     let js_glob = format!("{}/{}", project_path.display(), "*/**/*.js");
-    println!("found files in: {}", duration_to_ms(glob_time.elapsed()));
     let parse_time = Instant::now();
     let file_vec: Vec<PathBuf> = glob(&js_glob)
         .unwrap()
         .map(|entry| entry.unwrap())
         .collect();
+    println!("found files in: {}", duration_to_ms(glob_time.elapsed()));
     let source_files: HasteMap = file_vec
         .par_iter()
         .map(|path| (path.clone(), File::open(&path)))
@@ -67,21 +67,47 @@ fn derive_haste_map(project_path: PathBuf) -> HasteMap {
     source_files
 }
 
-fn read_haste_map_from_cache() -> HasteMap {
-    let mut cache = File::open("cache.bincode").expect("Failed to open cache.json");
-    let mut buf = vec![];
-    cache.read_to_end(&mut buf).unwrap();
-    bincode::deserialize(&buf).expect("Failed to parse cache")
+fn read_haste_map_from_cache() -> Vec<SourceFile> {
+    let cache_glob = format!("{}/{}", CACHE_DIR, "*");
+    let paths: Vec<PathBuf> = glob(&cache_glob)
+        .unwrap()
+        .map(|entry| entry.unwrap())
+        .collect();
+    let haste: Vec<SourceFile> = paths
+        .par_iter()
+        .flat_map(|path| -> Vec<SourceFile> {
+            let mut cache = File::open(path).unwrap();
+            let mut buf = vec![];
+            cache.read_to_end(&mut buf).unwrap();
+            bincode::deserialize(&buf).unwrap()
+        })
+        .collect();
+    haste
+}
+
+fn make_cache_filename(id: usize) -> String {
+    format!("{}/{}.bincode", CACHE_DIR, id)
 }
 
 fn write_to_cache(haste_map: &HasteMap) {
-    let serialized = bincode::serialize(haste_map).unwrap();
-
-    let mut cache = File::create("cache.bincode").expect("Failed to open cache.bincode");
-    cache
-        .write_all(&serialized)
-        .expect("Failed to write cache.json");
-    // println!("{:?}", serialized);
+    let threads = num_cpus::get();
+    // let threads = 1;
+    let min: usize = 1;
+    let chunk_size: usize = haste_map.len() / threads;
+    let chunk_size = std::cmp::max(chunk_size, min);
+    let mut counter = 1..chunk_size + 1;
+    println!("Writing cache in {} chunks of size {}", threads, chunk_size);
+    let chunks = haste_map.chunks(chunk_size);
+    std::fs::create_dir_all(CACHE_DIR).unwrap();
+    for chunk in chunks {
+        let cache_file_name = make_cache_filename(counter.next().unwrap());
+        println!("chunk: {}", cache_file_name);
+        let serialized = bincode::serialize(chunk).unwrap();
+        let mut cache = File::create(cache_file_name).expect("Failed to open cache.bincode");
+        cache
+            .write_all(&serialized)
+            .expect("Failed to write cache.json");
+    }
 }
 
 // Generate a deterministic string version of a haste map. Used for comparing output to JS implementation.
@@ -101,10 +127,10 @@ fn get_deterministic_hastemap_string(haste_map: HasteMap) -> String {
 
 fn main() {
     let now = Instant::now();
-    let cache_path = Path::new(CACHE_FILE);
+    let cache_path = Path::new(CACHE_DIR);
     let use_cache = cache_path.exists();
     match use_cache {
-        true => println!("Found cache file: {}", cache_path.display()),
+        true => println!("Found cache: {}", cache_path.display()),
         false => println!("no cache found. Recalculating..."),
     }
     let haste_map = if use_cache {

@@ -1,6 +1,5 @@
 target/
-cache.json
 jest_haste_map/node_modules
-cache.bincode
+cache/
 haste_map_rs.txt
 haste_map_js.txt
