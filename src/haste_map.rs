@@ -1,7 +1,7 @@
-extern crate bincode;
-extern crate num_cpus;
-
+use bincode;
 use glob::glob;
+use js_parser;
+use num_cpus;
 use rayon::prelude::*;
 use std;
 use std::fs::File;
@@ -9,8 +9,6 @@ use std::io::Read;
 use std::io::Write;
 use std::path::PathBuf;
 use std::time::Instant;
-
-use js_parser;
 use types::{HasteMap, SourceFile};
 use utils;
 
