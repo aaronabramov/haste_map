@@ -2,11 +2,11 @@ extern crate bincode;
 extern crate glob;
 #[macro_use]
 extern crate lazy_static;
-extern crate num_cpus;
 extern crate rayon;
 extern crate regex;
 #[macro_use]
 extern crate serde_derive;
+extern crate num_cpus;
 
 use glob::glob;
 use rayon::prelude::*;
@@ -67,7 +67,7 @@ fn derive_haste_map(project_path: PathBuf) -> HasteMap {
     source_files
 }
 
-fn read_haste_map_from_cache() -> Vec<SourceFile> {
+fn read_haste_map_from_cache() -> HasteMap {
     let cache_glob = format!("{}/{}", CACHE_DIR, "*");
     let paths: Vec<PathBuf> = glob(&cache_glob)
         .unwrap()

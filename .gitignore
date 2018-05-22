@@ -1,4 +1,6 @@
 target/
+build/*
+yarn-error.log
 jest_haste_map/node_modules
 cache/
 haste_map_rs.txt
