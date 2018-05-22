@@ -2,6 +2,9 @@ use regex::Regex;
 
 lazy_static! {
   // Adapted from https://github.com/facebook/jest/blob/master/packages/jest-haste-map/src/lib/extract_requires.js
+  static ref BLOCK_COMMENT: Regex = Regex::new(r#"/\*(.|\s)*?\*/"#).unwrap();
+  static ref LINE_COMMENT: Regex = Regex::new(r#"//.*"#).unwrap();
+
   static ref DYNAMIC_IMPORT: Regex = Regex::new(r#"(?:^|[^.]\s*)(\bimport\s*?\(\s*?)([`'"])(?P<module>[^`'"]+)([`'"]\))"#).unwrap();
   static ref EXPORT: Regex = Regex::new(r#"(\bexport\s+(?P<type>type )?(?:[^'"]+\s+from\s+)??)(['"])(?P<module>[^'"]+)(['"])"#).unwrap();
   static ref IMPORT: Regex = Regex::new(r#"(\bimport\s+(?P<type>type )?(?:[^'"]+\s+from\s+)??)(['"])(?P<module>[^'"]+)(['"])"#).unwrap();
@@ -11,12 +14,17 @@ lazy_static! {
 
 pub fn parse(content: &String) -> Vec<String> {
   let patterns: Vec<&Regex> = vec![&IMPORT, &EXPORT, &DYNAMIC_IMPORT, &REQUIRE, &REQUIRE_JEST];
+  let comment_patterns: Vec<&Regex> = vec![&LINE_COMMENT, &BLOCK_COMMENT];
+
+  let clean_content: String = comment_patterns.iter().fold(content.to_string(), |c, p| {
+    p.replace_all(&c, "").to_string()
+  });
 
   let captures: Vec<String> = patterns
     .iter()
     .flat_map(|pattern| {
       pattern
-        .captures_iter(&content)
+        .captures_iter(&clean_content)
         .filter(|c| !c.name("type").is_some()) // Ignore type imports.
         .map(|c| String::from(c.name("module").unwrap().as_str()))
     })
@@ -116,5 +124,33 @@ mod test {
     );
     let result = super::parse(&content);
     assert_eq!(result, vec!["a", "b"]);
+  }
+
+  #[test]
+  fn ignore_line_comments() {
+    let content = String::from(
+      r#"
+      // require.requireActual('a');
+      // require.requireMock('b');
+    "#,
+    );
+    let result = super::parse(&content);
+    let expected: Vec<&str> = vec![];
+    assert_eq!(result, expected);
+  }
+
+  #[test]
+  fn ignore_block_comments() {
+    let content = String::from(
+      r#"
+      /*
+        require.requireActual('a');
+        require.requireMock('b');
+      */
+    "#,
+    );
+    let result = super::parse(&content);
+    let expected: Vec<&str> = vec![];
+    assert_eq!(result, expected);
   }
 }
