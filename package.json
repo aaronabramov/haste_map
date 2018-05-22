@@ -1,0 +1,11 @@
+{
+  "name": "haste_map",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github.com:aaronabramov/haste_map.git",
+  "author": "Aaron Abramov <aaron@abramov.io>",
+  "scripts": {
+    "build": "./scripts/build.sh",
+    "build-release": "./scripts/build.sh release"
+  }
+}

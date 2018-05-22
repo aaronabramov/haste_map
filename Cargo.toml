@@ -12,3 +12,12 @@ lazy_static = "1.0"
 bincode = "1.0.0"
 rayon = "1.0"
 num_cpus = "1.0"
+neon = "0.1.22"
+
+[lib]
+name = "nodejs_extension"
+path = "src/nodejs_extension.rs"
+crate-type = ["dylib"]
+
+[build-dependencies]
+neon-build = "0.1.22"
