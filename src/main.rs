@@ -1,14 +1,15 @@
-extern crate bincode;
-extern crate glob;
-#[macro_use]
-extern crate lazy_static;
-extern crate rayon;
-extern crate regex;
 #[macro_use]
 extern crate serde_derive;
-extern crate num_cpus;
-use rayon::prelude::*;
+#[macro_use]
+extern crate lazy_static;
 
+extern crate bincode;
+extern crate glob;
+extern crate num_cpus;
+extern crate rayon;
+extern crate regex;
+
+use rayon::prelude::*;
 use std::env;
 use std::fs;
 use std::fs::File;
