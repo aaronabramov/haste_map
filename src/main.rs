@@ -64,8 +64,7 @@ fn main() {
         haste_map
     };
     println!("hastmap has {} files", haste_map.len());
-    let elapsed = now.elapsed();
-    println!("ms: {}", utils::duration_to_ms(elapsed));
+    utils::log_time(now, &"total time");
 
     const COMPARISON_ARTIFACT: &str = "haste_map_rs.txt";
     let comparison_artifact = Path::new(COMPARISON_ARTIFACT);

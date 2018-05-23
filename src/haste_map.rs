@@ -1,7 +1,6 @@
 use bincode;
 use glob::glob;
 use js_parser;
-use num_cpus;
 use rayon::prelude::*;
 use std;
 use std::fs::File;
@@ -22,29 +21,17 @@ pub fn derive_haste_map(project_path: PathBuf) -> HasteMap {
         .unwrap()
         .map(|entry| entry.unwrap())
         .collect();
-    println!(
-        "found files in: {}",
-        utils::duration_to_ms(glob_time.elapsed())
-    );
-    let source_files: HasteMap = file_vec
+    utils::log_time(glob_time, &"found files");
+    let chunk_size = utils::get_chunk_size(&file_vec);
+    // make more chunks, so they're spread more evenly and the slowest
+    // chunk doesn't hold the last thread for too long. There's still
+    // a lot of room for optimization. (e.g. shared pool of files to parse)
+    let chunks: Vec<&[PathBuf]> = file_vec.chunks(chunk_size / 10).collect();
+    let source_files: HasteMap = chunks
         .par_iter()
-        .map(|path| (path.clone(), File::open(&path)))
-        .filter(|tuple| tuple.1.is_ok())
-        .map(|(path, open)| (path, open.unwrap()))
-        .map(|(path, mut file)| {
-            let mut content = String::new();
-            (path, file.read_to_string(&mut content), content)
-        })
-        .filter(|tuple| tuple.1.is_ok())
-        .map(|(path, _, content)| SourceFile {
-            path,
-            dependencies: js_parser::parse(&content),
-        })
+        .flat_map(|chunk| js_parser::parse_chunk(chunk))
         .collect();
-    println!(
-        "Parsed files in: {}",
-        utils::duration_to_ms(parse_time.elapsed())
-    );
+    utils::log_time(parse_time, &"parsed files");
     source_files
 }
 
@@ -71,17 +58,12 @@ fn make_cache_filename(id: usize) -> String {
 }
 
 pub fn write_to_cache(haste_map: &HasteMap) {
-    let threads = num_cpus::get();
-    // let threads = 1;
-    let min: usize = 1;
-    let chunk_size: usize = haste_map.len() / threads;
-    let chunk_size = std::cmp::max(chunk_size, min);
-    let mut counter = 1..chunk_size + 1;
-    println!("Writing cache in {} chunks of size {}", threads, chunk_size);
+    let chunk_size = utils::get_chunk_size(haste_map);
+    println!("Writing cache in chunks of size {}", chunk_size);
     let chunks = haste_map.chunks(chunk_size);
     std::fs::create_dir_all(CACHE_DIR).unwrap();
-    for chunk in chunks {
-        let cache_file_name = make_cache_filename(counter.next().unwrap());
+    for (counter, chunk) in chunks.enumerate() {
+        let cache_file_name = make_cache_filename(counter);
         println!("chunk: {}", cache_file_name);
         let serialized = bincode::serialize(chunk).unwrap();
         let mut cache = File::create(cache_file_name).expect("Failed to open cache.bincode");

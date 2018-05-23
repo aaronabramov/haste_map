@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 #[macro_use]
 extern crate neon;
 #[macro_use]
@@ -15,16 +17,12 @@ extern crate regex;
 use neon::js::{JsArray, JsObject, JsString, Object};
 use neon::mem::Handle;
 use neon::vm::{Call, JsResult};
-use std::path::PathBuf;
+// use std::path::PathBuf;
 
 mod haste_map;
 mod js_parser;
 mod types;
 mod utils;
-
-struct SharedHaste {
-    haste: types::HasteMap,
-}
 
 fn hello(call: Call) -> JsResult<JsString> {
     let scope = call.scope;
@@ -32,10 +30,10 @@ fn hello(call: Call) -> JsResult<JsString> {
 }
 
 fn build_haste_map(call: Call) -> JsResult<JsObject> {
-    let project_path = call.arguments
-        .require(call.scope, 0)?
-        .check::<JsString>()?
-        .value() as String;
+    // let project_path = call.arguments
+    //     .require(call.scope, 0)?
+    //     .check::<JsString>()?
+    //     .value() as String;
 
     // let haste = haste_map::derive_haste_map(PathBuf::from(&project_path));
     let haste = haste_map::read_haste_map_from_cache();

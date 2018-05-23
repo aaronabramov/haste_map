@@ -1,17 +1,40 @@
 use regex::Regex;
+use std::fs::File;
+use std::io::Read;
+use std::path::PathBuf;
+use std::time::Instant;
+use types::SourceFile;
+use utils;
 
-lazy_static! {
-  // Adapted from https://github.com/facebook/jest/blob/master/packages/jest-haste-map/src/lib/extract_requires.js
-  static ref DYNAMIC_IMPORT: Regex = Regex::new(r#"(?:^|[^.]\s*)(\bimport\s*?\(\s*?)([`'"])(?P<module>[^`'"]+)([`'"]\))"#).unwrap();
-  static ref EXPORT: Regex = Regex::new(r#"(\bexport\s+(?P<type>type )?(?:[^'"]+\s+from\s+)??)(['"])(?P<module>[^'"]+)(['"])"#).unwrap();
-  static ref IMPORT: Regex = Regex::new(r#"(\bimport\s+(?P<type>type )?(?:[^'"]+\s+from\s+)??)(['"])(?P<module>[^'"]+)(['"])"#).unwrap();
-  static ref REQUIRE_JEST: Regex = Regex::new(r#"(?:^|[^.]\s*)(\b(?:require\s*?\.\s*?(?:requireActual|requireMock)|jest\s*?\.\s*?(?:requireActual|requireMock|genMockFromModule))\s*?\(\s*?)([`'"])(?P<module>[^`'"]+)([`'"]\))"#).unwrap();
-  static ref REQUIRE: Regex = Regex::new(r#"(?:^|[^.]\s*)(\brequire\s*?\(\s*?)([`'"])(?P<module>[^`'"]+)([`'"]\))"#).unwrap();
+lazy_static!{}
+
+pub fn parse_chunk(chunk: &[PathBuf]) -> Vec<SourceFile> {
+  let now = Instant::now();
+  let patterns = make_patterns();
+  let parsed_chunk: Vec<SourceFile> = chunk
+    .iter()
+    .map(|path| (path.clone(), File::open(&path)))
+    .filter(|tuple| tuple.1.is_ok())
+    .map(|(path, open)| (path, open.unwrap()))
+    .map(|(path, mut file)| {
+      let mut content = String::new();
+      let result = file.read_to_string(&mut content);
+      (path, content, result)
+    })
+    .filter(|tuple| tuple.2.is_ok())
+    .map(|(path, content, _)| {
+      let result = SourceFile {
+        path,
+        dependencies: extract_deps(&content, &patterns),
+      };
+      result
+    })
+    .collect();
+  utils::skip_log_time(now, &"PARSED CHUNK");
+  parsed_chunk
 }
 
-pub fn parse(content: &String) -> Vec<String> {
-  let patterns: Vec<&Regex> = vec![&IMPORT, &EXPORT, &DYNAMIC_IMPORT, &REQUIRE, &REQUIRE_JEST];
-
+fn extract_deps(content: &String, patterns: &Vec<Regex>) -> Vec<String> {
   let captures: Vec<String> = patterns
     .iter()
     .flat_map(|pattern| {
@@ -24,6 +47,17 @@ pub fn parse(content: &String) -> Vec<String> {
   captures
 }
 
+fn make_patterns() -> Vec<Regex> {
+  // Adapted from https://github.com/facebook/jest/blob/master/packages/jest-haste-map/src/lib/extract_requires.js
+  vec![
+   Regex::new(r#"(?:^|[^.]\s*)(\bimport\s*?\(\s*?)([`'"])(?P<module>[^`'"]+)([`'"]\))"#).unwrap(),
+   Regex::new(r#"(\bexport\s+(?P<type>type )?(?:[^'"]+\s+from\s+)??)(['"])(?P<module>[^'"]+)(['"])"#).unwrap(),
+   Regex::new(r#"(\bimport\s+(?P<type>type )?(?:[^'"]+\s+from\s+)??)(['"])(?P<module>[^'"]+)(['"])"#).unwrap(),
+   Regex::new(r#"(?:^|[^.]\s*)(\b(?:require\s*?\.\s*?(?:requireActual|requireMock)|jest\s*?\.\s*?(?:requireActual|requireMock|genMockFromModule))\s*?\(\s*?)([`'"])(?P<module>[^`'"]+)([`'"]\))"#).unwrap(),
+   Regex::new(r#"(?:^|[^.]\s*)(\brequire\s*?\(\s*?)([`'"])(?P<module>[^`'"]+)([`'"]\))"#).unwrap(),
+  ]
+}
+
 #[cfg(test)]
 mod test {
   #[test]
@@ -34,7 +68,7 @@ mod test {
       const a = () => { require('b') };
     "#,
     );
-    let result = super::parse(&content);
+    let result = super::extract_deps(&content, &super::make_patterns());
     assert_eq!(result, vec!["a", "b"]);
   }
 
@@ -47,7 +81,7 @@ mod test {
       import {a, b, c} from 'c';
     "#,
     );
-    let result = super::parse(&content);
+    let result = super::extract_deps(&content, &super::make_patterns());
     assert_eq!(result, vec!["a", "c"]);
   }
 
@@ -60,7 +94,7 @@ mod test {
       export type {c} from 'c';
     "#,
     );
-    let result = super::parse(&content);
+    let result = super::extract_deps(&content, &super::make_patterns());
     assert_eq!(result, vec!["a", "b"]);
   }
 
@@ -71,7 +105,7 @@ mod test {
       import('a').then(() => {});
     "#,
     );
-    let result = super::parse(&content);
+    let result = super::extract_deps(&content, &super::make_patterns());
     assert_eq!(result, vec!["a"]);
   }
 
@@ -89,7 +123,7 @@ mod test {
       } from "b";
     "#,
     );
-    let result = super::parse(&content);
+    let result = super::extract_deps(&content, &super::make_patterns());
     assert_eq!(result, vec!["a", "b"]);
   }
 
@@ -101,7 +135,7 @@ mod test {
       import type { MyOtherType } from "b";
     "#,
     );
-    let result = super::parse(&content);
+    let result = super::extract_deps(&content, &super::make_patterns());
     let expected: Vec<&str> = vec![];
     assert_eq!(result, expected);
   }
@@ -114,7 +148,7 @@ mod test {
       require.requireMock('b');
     "#,
     );
-    let result = super::parse(&content);
+    let result = super::extract_deps(&content, &super::make_patterns());
     assert_eq!(result, vec!["a", "b"]);
   }
 }
