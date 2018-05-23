@@ -18,6 +18,7 @@ neon = "0.1.22"
 name = "nodejs_extension"
 path = "src/nodejs_extension.rs"
 crate-type = ["dylib"]
+test = false
 
 [build-dependencies]
 neon-build = "0.1.22"
