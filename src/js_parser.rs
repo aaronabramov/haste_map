@@ -12,6 +12,7 @@ lazy_static! {
   static ref REQUIRE: Regex = Regex::new(r#"(?:^|[^.]\s*)(\brequire\s*?\(\s*?)([`'"])(?P<module>[^`'"]+)([`'"]\))"#).unwrap();
 }
 
+// Returns a unique sorted list of dependencies.
 pub fn parse(content: &String) -> Vec<String> {
   let patterns: Vec<&Regex> = vec![&IMPORT, &EXPORT, &DYNAMIC_IMPORT, &REQUIRE, &REQUIRE_JEST];
   let comment_patterns: Vec<&Regex> = vec![&LINE_COMMENT, &BLOCK_COMMENT];
@@ -20,7 +21,7 @@ pub fn parse(content: &String) -> Vec<String> {
     p.replace_all(&c, "").to_string()
   });
 
-  let captures: Vec<String> = patterns
+  let mut captures: Vec<String> = patterns
     .iter()
     .flat_map(|pattern| {
       pattern
@@ -29,6 +30,9 @@ pub fn parse(content: &String) -> Vec<String> {
         .map(|c| String::from(c.name("module").unwrap().as_str()))
     })
     .collect();
+
+  captures.sort();
+  captures.dedup();
   captures
 }
 
@@ -152,5 +156,22 @@ mod test {
     let result = super::parse(&content);
     let expected: Vec<&str> = vec![];
     assert_eq!(result, expected);
+  }
+
+  #[test]
+  fn dedupes_duplicate_imports() {
+    let content = String::from(
+      r#"
+        if(foo) {
+          require('a');
+        }
+        if(bar) {
+          require('a');
+        }
+        require('b');
+    "#,
+    );
+    let result = super::parse(&content);
+    assert_eq!(result, vec!["a", "b"]);
   }
 }

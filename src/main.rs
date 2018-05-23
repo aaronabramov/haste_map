@@ -1,7 +1,7 @@
 #[macro_use]
-extern crate serde_derive;
-#[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate serde_derive;
 
 extern crate bincode;
 extern crate glob;
@@ -36,8 +36,7 @@ fn get_deterministic_hastemap_string(haste_map: types::HasteMap) -> String {
     let mut lines: Vec<String> = haste_map
         .par_iter()
         .map(|source| {
-            let mut dep: Vec<String> = source.dependencies.clone();
-            dep.sort();
+            let dep: Vec<String> = source.dependencies.clone();
             format!("{}|{}", source.path.display(), dep.join("|"))
         })
         .collect();
