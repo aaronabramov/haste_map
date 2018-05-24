@@ -4,17 +4,15 @@ const os = require("os");
 const fs = require("fs");
 
 const DEPENDENCY_INDEX = 3;
-const ARTIFACT_PATH = "../haste_map_js.txt";
+const ARTIFACT_PATH = path.join(__dirname, "../haste_map_js.txt");
+const root = process.argv[2];
 
 const hasteMap = new HasteMap({
   name: "test",
   extensions: ["js"],
   ignorePattern: /node_modules/,
   platforms: ["ios", "android"],
-  roots: [
-    path.resolve(os.homedir(), "fbsource/xplat")
-    // path.resolve(os.homedir(), 'fbsource/xplat/nuclide'),
-  ]
+  roots: [path.resolve(root)]
 });
 
 console.log(HasteMap.getCacheFilePath(os.tmpdir(), "test"));

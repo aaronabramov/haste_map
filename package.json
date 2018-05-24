@@ -6,7 +6,8 @@
   "author": "Aaron Abramov <aaron@abramov.io>",
   "scripts": {
     "build": "./scripts/build.sh",
-    "build-release": "./scripts/build.sh release"
+    "build-release": "./scripts/build.sh release",
+    "build-artifacts": "./scripts/build_artifacts.sh"
   },
   "devDependencies": {
     "jest": "^22.4.4"
