@@ -1,6 +1,6 @@
 # Haste Map
 
-Hast Map parsing in Rust.
+Haste Map parsing in Rust.
 
 ## Scripts
 
